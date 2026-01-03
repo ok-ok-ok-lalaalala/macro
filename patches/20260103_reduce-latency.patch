@@ -1,0 +1,75 @@
+--- a/macro_engine.py
++++ b/macro_engine.py
+@@ -88,34 +88,48 @@ class MacroPlayback:
+     """Plays back recorded macro actions."""
+     def __init__(self, on_disable_callback=None):
+         self.playing = False
+         self.stop_event = Event()
+         self.on_disable_callback = on_disable_callback
+         self.global_listener = None
++        self.controller_kb = keyboard.Controller()
++        self.controller_ms = mouse.Controller()
+         self._setup_disable_key()
+
+     def _setup_disable_key(self):
+         """Setup Delete key as global disable key."""
+         def on_press(key):
+             try:
+                 if key == keyboard.Key.delete:
+                     self.stop()
+                     if self.on_disable_callback:
+                         self.on_disable_callback()
+             except Exception:
+                 pass
+         
+         self.global_listener = keyboard.Listener(on_press=on_press)
+         self.global_listener.start()
+
+-    def play(self, actions, speed=1.0):
+-        """Play a list of macro actions. speed: 1.0 = normal, 2.0 = 2x faster, 0.5 = half speed."""
++    def play(self, actions, speed=1.0):
++        """Play a list of macro actions with minimal latency. speed: 1.0 = normal, 2.0 = 2x faster, 0.5 = half speed."""
+         self.playing = True
+         self.stop_event.clear()
+         
+         def play_thread():
+-            controller_kb = keyboard.Controller()
+-            controller_mouse = mouse.Controller()
+             last_time = 0
+             
+             for action in actions:
+                 if self.stop_event.is_set():
+                     break
+                 
+                 action_type = action.get('type')
+                 current_time = action.get('timestamp', 0) / speed
+                 
+-                # Calculate delay based on time difference
++                # Minimal delay calculation - only sleep for significant time gaps
+                 if current_time > last_time:
+                     delay = (current_time - last_time)
+-                    if delay > 0.01:  # Only sleep for significant delays
+-                        time.sleep(delay)
++                    if delay > 0.001:  # Sub-millisecond precision
++                        time.sleep(delay * 0.99)  # Slight underestimate to reduce latency
+                 
+                 last_time = current_time
+                 
+                 try:
+                     if action_type == 'key_press':
+-                        controller_kb.press(action['key'])
++                        self.controller_kb.press(action['key'])
+                     elif action_type == 'key_release':
+-                        controller_kb.release(action['key'])
++                        self.controller_kb.release(action['key'])
+                     elif action_type == 'mouse_move':
+-                        controller_mouse.position = (action['x'], action['y'])
++                        self.controller_ms.position = (action['x'], action['y'])
+                     elif action_type == 'mouse_click':
+                         button = action.get('button', 'left')
+-                        controller_mouse.click(button)
++                        self.controller_ms.click(button)
+                     elif action_type == 'mouse_release':
+                         pass  # Already handled by click
+                 except Exception as e:
+                     print(f'Error playing action {action_type}: {e}')
