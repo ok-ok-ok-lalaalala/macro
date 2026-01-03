@@ -1,0 +1,11 @@
+--- a/macro_maker.py
++++ b/macro_maker.py
+@@ -45,7 +45,7 @@ class MacroMakerGUI:
+         # Macro list frame
+         list_frame = ttk.Frame(main_frame)
+         list_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+-        self.macro_tree = ttk.Treeview(list_frame, columns=("name", "group"), width=25, height=10)
++        self.macro_tree = ttk.Treeview(list_frame, columns=("name", "group"), height=10)
+         self.macro_tree.heading("#0", text="Macros")
+         self.macro_tree.column("#0", width=150)
+         self.macro_tree.column("name", width=100)
