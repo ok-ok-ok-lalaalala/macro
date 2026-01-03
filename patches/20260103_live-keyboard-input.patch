@@ -1,0 +1,89 @@
+--- a/macro_maker.py
++++ b/macro_maker.py
+@@ -104,6 +104,22 @@ class MacroMakerGUI(tk.Tk):
+         ttk.Button(ctrl_frame, text='Stop Playback', command=self.stop_playback).pack(side='left', padx=2)
+         
+         ttk.Button(ctrl_frame, text='Save Macro', command=self.save_current_macro).pack(side='left', padx=2)
++        
++        # Live keyboard input panel
++        live_frame = ttk.LabelFrame(right_frame, text='Live Keyboard Input (Click to activate)', padding=5)
++        live_frame.pack(fill='x', padx=5, pady=5)
++        
++        self.live_input = tk.Text(live_frame, height=3, width=80, font=('Courier', 10), wrap='word')
++        self.live_input.pack(fill='both', expand=True)
++        self.live_input.bind('<FocusIn>', self._start_live_input)
++        self.live_input.bind('<FocusOut>', self._stop_live_input)
++        self.live_input.insert('1.0', 'Click here and type keys... they will be applied in real-time')
++        self.live_key_listener = None
++        self.live_recording = False
+         
+         # Manual action editor
+         actions_frame = ttk.LabelFrame(right_frame, text='Manual Actions', padding=5)
+@@ -115,6 +131,7 @@ class MacroMakerGUI(tk.Tk):
+         ttk.Button(action_btn_frame, text='Add Mouse Move', command=self.add_mouse_move_action).pack(side='left', padx=2)
+         ttk.Button(action_btn_frame, text='Add Mouse Click', command=self.add_mouse_click_action).pack(side='left', padx=2)
+         ttk.Button(action_btn_frame, text='Add Delay', command=self.add_delay_action).pack(side='left', padx=2)
++        ttk.Button(action_btn_frame, text='Clear Actions', command=self.clear_actions).pack(side='left', padx=2)
+         
+         # Actions list
+         self.actions_frame = ttk.Frame(actions_frame)
+@@ -342,6 +359,61 @@ class MacroMakerGUI(tk.Tk):
+             if macro.hotkey and self._hotkey_matches(pressed_keys, macro.hotkey):
+                 self.current_macro = macro
+                 self.play_macro()
+                 return True
+         return False
++
++    def _start_live_input(self, event=None):
++        """Start capturing live keyboard input."""
++        if self.live_recording:
++            return
++        self.live_recording = True
++        self.live_input.config(fg='black')
++        self.live_input.delete('1.0', tk.END)
++        
++        def on_key_press(key):
++            if not self.live_recording:
++                return
++            try:
++                key_str = key.char if hasattr(key, 'char') and key.char else str(key).split('.')[-1]
++                # Filter special keys
++                if key_str not in ['Return', 'BackSpace', 'Tab']:
++                    self.live_input.insert(tk.END, key_str + ' ')
++                    # Auto-add key to current macro
++                    if self.current_macro:
++                        self.current_macro.actions.append({
++                            'type': 'key_press',
++                            'key': key_str,
++                            'timestamp': 0.0
++                        })
++                        self._refresh_actions_display()
++            except:
++                pass
++        
++        self.live_key_listener = keyboard.Listener(on_press=on_key_press)
++        self.live_key_listener.start()
++
++    def _stop_live_input(self, event=None):
++        """Stop capturing live keyboard input."""
++        self.live_recording = False
++        if self.live_key_listener:
++            self.live_key_listener.stop()
++        self.live_input.config(fg='gray')
++        if self.live_input.get('1.0', tk.END).strip() == '':
++            self.live_input.insert('1.0', 'Click to re-activate live input')
++
++    def clear_actions(self):
++        """Clear all actions from current macro."""
++        if self.current_macro:
++            self.current_macro.actions = []
++            self._refresh_actions_display()
++            self._append_status('Actions cleared.')
++
++    def _refresh_actions_display(self):
++        """Refresh the actions display list."""
++        for widget in self.actions_list.winfo_children():
++            widget.destroy()
++        
++        if not self.current_macro:
++            return
