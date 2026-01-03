@@ -1,0 +1,28 @@
+--- a/build.bat
++++ b/build.bat
+@@ -1,12 +1,24 @@
+ @echo off
+-REM build.bat - Builds the Macro Maker into a standalone .exe
++REM build.bat - Builds the Macro Maker into a standalone .exe with auto-update and cleanup
+ 
+ setlocal enabledelayedexpansion
+ 
+ echo Building Macro Maker...
+ echo.
++
++REM Clean old builds before creating new ones
++echo Cleaning old build artifacts...
++if exist "dist" (
++    echo Backing up old dist folder to dist.bak...
++    if exist "dist.bak" rmdir /s /q "dist.bak" >nul 2>&1
++    ren dist dist.bak
++)
++if exist "build" rmdir /s /q build >nul 2>&1
++echo.
+ 
+ REM Pull latest patches from GitHub
+ call "%~dp0update_patches.bat" ok-ok-ok-lalaalala macro main
+ if !errorlevel! neq 0 (
+     echo Warning: update_patches failed, continuing with build anyway.
+ )
+ echo.
